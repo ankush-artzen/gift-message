@@ -1,0 +1,14 @@
+{
+  "welcome": "Bienvenue dans l'extension {{target}}!",
+  "iWouldLikeAFreeGiftWithMyOrder": "Je souhaite recevoir un cadeau gratuit avec ma commande",
+  "addAFreeGiftToMyOrder": "Ajouter un cadeau gratuit à ma commande",
+  "metafieldChangesAreNotSupported": "Les modifications de métachamps de panier ne sont pas prises en charge dans cette commande",
+  "gifting": "Cadeau",
+  "giftingDescription": "Ajoutez un message personnel. Il apparaîtra avec votre cadeau.",
+  "giftMessage": "Message cadeau",
+  "giftMessageRequired": "Saisissez un message cadeau pour continuer.",
+  "abusiveLanguage": "Veuillez retirer les propos inappropriés ou injurieux de votre message cadeau.",
+  "save": "Enregistrer",
+  "saveError": "Impossible d'enregistrer votre message cadeau. Veuillez réessayer.",
+  "editGiftMessage": "Modifier le message cadeau"
+}

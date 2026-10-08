@@ -1,0 +1,14 @@
+{
+  "welcome": "Welcome to the {{target}} extension!",
+  "iWouldLikeAFreeGiftWithMyOrder": "I would like to receive a free gift with my order",
+  "addAFreeGiftToMyOrder": "Add a free gift to my order",
+  "metafieldChangesAreNotSupported": "Cart metafield changes are not supported in this checkout",
+  "gifting": "Gifting",
+  "giftingDescription": "Each design arrives artfully housed in our new fawn-hued, sueded presentation box, nested inside a cream-colored outer box and wrapped in a signature ribbon with a gift receipt included.",
+  "giftMessage": "Gift message",
+  "giftMessageRequired": "Enter a gift message to continue.",
+  "abusiveLanguage": "Please remove inappropriate or abusive language from your gift message.",
+  "save": "Save",
+  "saveError": "Couldn't save your gift message. Please try again.",
+  "editGiftMessage": "Edit gift message"
+}

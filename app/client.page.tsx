@@ -1,152 +1,424 @@
 "use client";
 
-import { graphql } from "@/lib/gql";
-import { useAppBridge } from "@shopify/app-bridge-react";
-import { Button, LegacyCard as Card, Page, Text } from "@shopify/polaris";
-import Link from "next/link";
-import { useState } from "react";
-import { doServerAction } from "./actions";
-import { useGraphQL } from "./hooks/useGraphQL";
+import {
+  Page,
+  Card,
+  Text,
+  Button,
+  BlockStack,
+  InlineStack,
+  Badge,
+  Box,
+  Divider,
+  Collapsible,
+} from "@shopify/polaris";
 
-interface Data {
-  name: string;
-  height: string;
-}
-
-const GET_SHOP = graphql(`
-  query getShop {
-    shop {
-      name
-    }
-  }
-`);
+import { useCallback, useEffect, useState } from "react";
 
 export default function Home() {
-  const [data, setData] = useState<Data | null>(null);
-  const [serverActionResult, setServerActionResult] = useState<{
-    status: "success" | "error";
-  }>();
+  const [checkoutEditorUrl, setCheckoutEditorUrl] = useState<string | null>(
+    null,
+  );
+  const [checkoutSettingsUrl, setCheckoutSettingsUrl] = useState<
+    string | null
+  >(null);
+  const [linksLoading, setLinksLoading] = useState(true);
+  const [giftPreviewOpen, setGiftPreviewOpen] = useState(false);
 
-  // useGraphQL is a hook that uses Tanstack Query to query Shopify GraphQL, everything is typed!
-  const {
-    data: graphqlData,
-    isLoading: graphqlLoading,
-    error: graphqlError,
-  } = useGraphQL(GET_SHOP);
+  const loadCheckoutLinks = useCallback(async () => {
+    setLinksLoading(true);
 
-  const app = useAppBridge();
-
-  const handleGetAPIRequest = async () => {
     try {
-      // global fetch has tokens automatically added
-      // https://shopify.dev/docs/api/app-bridge-library/apis/resource-fetching
-      const response = await fetch("/api/hello");
-      const result = (await response.json()) as { data: Data };
-      setData(result.data);
-    } catch (err) {
-      console.log(err);
+      const res = await fetch("shopify:admin/api/graphql.json", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: `
+            query {
+              shop {
+                myshopifyDomain
+              }
+              checkoutProfiles(first: 1) {
+                nodes {
+                  id
+                }
+              }
+            }
+          `,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Shopify Admin API returned ${res.status}`);
+      }
+
+      const result = await res.json();
+
+      if (result.errors?.length) {
+        throw new Error(
+          result.errors.map((error: { message?: string }) => error.message).join(
+            ", ",
+          ),
+        );
+      }
+
+      const data = result.data;
+
+      const myshopifyDomain = data?.shop?.myshopifyDomain;
+
+      if (!myshopifyDomain) {
+        throw new Error("Missing shop domain");
+      }
+
+      // Shopify Admin URLs require the shop handle, without .myshopify.com.
+      const handle = myshopifyDomain
+        .replace(/^https?:\/\//, "")
+        .replace(/\.myshopify\.com\/?$/, "");
+
+      if (!handle) {
+        throw new Error("Unable to determine Shopify store handle");
+      }
+
+      setCheckoutSettingsUrl(
+        `https://admin.shopify.com/store/${encodeURIComponent(handle)}/settings/checkout`,
+      );
+
+      const profileId = data?.checkoutProfiles?.nodes?.[0]?.id
+        ?.split("/")
+        .pop();
+
+      if (!profileId) {
+        throw new Error("Missing checkout profile");
+      }
+
+      // Use Shopify's normal checkout editor URL. Do not depend on an
+      // extension ID being present in NEXT_PUBLIC_* environment variables.
+      const editorUrl =
+        `https://admin.shopify.com/store/${encodeURIComponent(handle)}` +
+        `/settings/checkout/editor/profiles/${encodeURIComponent(profileId)}` +
+        `?page=checkout`;
+
+      setCheckoutEditorUrl(editorUrl);
+    } catch (error) {
+      console.error("Failed to load checkout links:", error);
+      setCheckoutEditorUrl(null);
+      setCheckoutSettingsUrl(null);
+    } finally {
+      setLinksLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadCheckoutLinks();
+  }, [loadCheckoutLinks]);
 
   return (
-    <Page title="Home">
-      <div className="flex items-center justify-center gap-1 p-2 bg-slate-800 text-white rounded-lg mb-2 shadow-lg">
-        <p className="font-medium text-[1rem]">
-          We can also use tailwindcss in this project!
-        </p>
-      </div>
-      <Card
-        sectioned
-        title="NextJs API Routes"
-        primaryFooterAction={{
-          content: "Call API",
-          onAction: handleGetAPIRequest,
-        }}
-      >
-        <Text as="p" variant="bodyMd">
-          Call a NextJS api route from within your app. The request is verified
-          using session tokens.
-        </Text>
-        {data && (
-          <Text as="h1" variant="headingSm">
-            {data.name} is {data.height} tall.
-          </Text>
-        )}
-      </Card>
+    <Page>
+      <BlockStack gap="600">
+        {/* Hero */}
+        <Card>
+          <Box padding="600">
+            <BlockStack gap="500">
+              <InlineStack
+                align="space-between"
+                blockAlign="center"
+                wrap
+                gap="400"
+              >
+                <BlockStack gap="100">
+                  <Text as="h1" variant="headingXl">
+                    Gift Checkout
+                  </Text>
 
-      <Card
-        sectioned
-        title="React server actions"
-        primaryFooterAction={{
-          content: "Server action",
-          onAction: async () => {
-            const token = await app.idToken();
-            const response = await doServerAction(token);
-            setServerActionResult(response);
-          },
-        }}
-      >
-        <Text as="p" variant="bodyMd">
-          Call a server action from within your app. The request is verified
-          using session tokens.
-        </Text>
-        {serverActionResult && serverActionResult.status === "success" && (
-          <Text as="h1" variant="headingSm">
-            Server action was successful.
-          </Text>
-        )}
-        {serverActionResult && serverActionResult.status === "error" && (
-          <Text as="h1" variant="headingSm">
-            Server action failed.
-          </Text>
-        )}
-      </Card>
+                  <InlineStack gap="200">
+                    <Badge tone="success">Active</Badge>
+                    <Badge>Checkout Extension</Badge>
+                  </InlineStack>
+                </BlockStack>
 
-      <Card sectioned title="Use Tanstack Query to query Shopify GraphQL">
-        <Text as="p" variant="bodyMd">
-          Use Tanstack Query to query Shopify&apos;s GraphQL API directly from
-          the client.
-        </Text>
-        {graphqlLoading && <p>Loading...</p>}
-        {graphqlData && <p>{graphqlData.shop.name}</p>}
-        {graphqlError && <p>{graphqlError.message}</p>}
-      </Card>
+                <Button
+                  variant="primary"
+                  url={checkoutEditorUrl ?? undefined}
+                  target="_top"
+                  disabled={linksLoading || !checkoutEditorUrl}
+                >
+                  Configure checkout
+                </Button>
+              </InlineStack>
 
-      <Card sectioned title="Shopify App Bridge">
-        <Text as="p" variant="bodyMd">
-          Use the direct graphql api provided by Shopify App Bridge. This
-          automatically uses an authenticated graphql route, no need to add
-          tokens.
-        </Text>
-        <Button
-          onClick={async () => {
-            const res = await fetch("shopify:admin/api/graphql.json", {
-              method: "POST",
-              body: JSON.stringify({
-                query: /* GraphQL */ `
-                  query {
-                    shop {
-                      name
-                    }
-                  }
-                `,
-              }),
-            });
-            const { data } = await res.json();
-            console.log("graphql response", data);
-          }}
-        >
-          GraphQL Query - Check the console for the response
-        </Button>
-      </Card>
+              <Box paddingBlockStart="300">
+                <BlockStack gap="300">
+                  <Text as="h2" variant="heading2xl">
+                    Make every order a little more personal.
+                  </Text>
 
-      <Card sectioned title="Shopify App Bridge">
-        <Text as="p" variant="bodyMd">
-          Use Shopify App Bridge to interact with the Shopify admin. The request
-          uses offline session tokens. This uses Shopify App Bridge v4.
-        </Text>
-        <Link href="/new">New page using next/link</Link>
-      </Card>
+                  <Text as="p" variant="bodyLg" tone="subdued">
+                    Let customers add a thoughtful gift message during
+                    checkout. Their message is securely saved with the cart
+                    and carried through to the order.
+                  </Text>
+                </BlockStack>
+              </Box>
+            </BlockStack>
+          </Box>
+        </Card>
+
+        {/* Main feature */}
+        <Card>
+          <BlockStack gap="500">
+            <BlockStack gap="100">
+                <Text as="h2" variant="headingLg">
+                  Gift messages made simple
+                </Text>
+
+                <Text as="p" tone="subdued">
+                  Give your customers an easy way to add a personal note to
+                  their order.
+                </Text>
+            </BlockStack>
+
+            <Divider />
+
+            <InlineStack
+              gap="500"
+              align="space-between"
+              wrap
+            >
+              <Feature
+                title="Personal messages"
+                description="Customers can write a custom message of up to 500 characters. Inappropriate or abusive language is blocked."
+              />
+
+              <Feature
+                title="Works with checkout"
+                description="The gift message is collected directly during the checkout experience."
+              />
+
+              <Feature
+                title="Saved with the order"
+                description="The message stays connected to the customer's order."
+              />
+            </InlineStack>
+          </BlockStack>
+        </Card>
+
+        {/* Preview */}
+        <InlineStack gap="500" wrap>
+          <Box width="100%">
+            <Card>
+              <BlockStack gap="400">
+                <BlockStack gap="100">
+                  <Text as="h2" variant="headingLg">
+                    Customer experience
+                  </Text>
+
+                  <Text as="p" tone="subdued">
+                    This is what your customers see during checkout.
+                  </Text>
+                </BlockStack>
+
+                <Box
+                  padding="500"
+                  background="bg-surface-secondary"
+                  borderRadius="300"
+                >
+                  <BlockStack gap="300">
+                    <Divider />
+                    <Button
+                      variant="monochromePlain"
+                      textAlign="start"
+                      fullWidth
+                      disclosure={giftPreviewOpen ? "up" : "down"}
+                      onClick={() => setGiftPreviewOpen((open) => !open)}
+                      ariaExpanded={giftPreviewOpen}
+                      ariaControls="gift-preview-panel"
+                    >
+                      {/* <Text as="span" fontWeight="semibold"> */}
+                        Gift message
+                      {/* </Text> */}
+                    </Button>
+                    <Divider />
+
+                    <Collapsible open={giftPreviewOpen} id="gift-preview-panel">
+                      <BlockStack gap="400">
+                        <Text as="p" tone="subdued">
+                          Add a personal message with your gift.
+                        </Text>
+
+                        <Box
+                          background="bg-surface"
+                          padding="400"
+                          borderRadius="200"
+                          borderWidth="025"
+                          borderColor="border"
+                        >
+                          <BlockStack gap="200">
+                            <Text as="p" tone="subdued">
+                              Gift message
+                            </Text>
+
+                            <Text as="p">Happy Birthday! 🎉</Text>
+                          </BlockStack>
+                        </Box>
+
+                        <Button variant="primary">Save Gift Message</Button>
+                      </BlockStack>
+                    </Collapsible>
+                  </BlockStack>
+                </Box>
+              </BlockStack>
+            </Card>
+          </Box>
+        </InlineStack>
+
+        {/* How it works */}
+        <Card>
+          <BlockStack gap="500">
+            <BlockStack gap="100">
+              <Text as="h2" variant="headingLg">
+                How it works
+              </Text>
+
+              <Text as="p" tone="subdued">
+                A simple three-step experience for your customers.
+              </Text>
+            </BlockStack>
+
+            <InlineStack
+              gap="600"
+              align="space-between"
+              wrap
+            >
+              <Step
+                number="01"
+                title="Customer writes a message"
+                description="The customer adds their personal gift message during checkout."
+              />
+
+              <Step
+                number="02"
+                title="Message is saved"
+                description="The message is securely stored with the cart."
+              />
+
+              <Step
+                number="03"
+                title="Message follows the order"
+                description="The gift message is available with the resulting order."
+              />
+            </InlineStack>
+          </BlockStack>
+        </Card>
+
+        {/* Configuration */}
+        <Card>
+          <BlockStack gap="400">
+            <InlineStack
+              align="space-between"
+              blockAlign="center"
+              wrap
+              gap="400"
+            >
+              <BlockStack gap="100">
+                <Text as="h2" variant="headingLg">
+                  Checkout configuration
+                </Text>
+
+                <Text as="p" tone="subdued">
+                  Manage where the Gift Checkout extension appears.
+                </Text>
+              </BlockStack>
+
+              <Badge tone="success">Ready to configure</Badge>
+            </InlineStack>
+
+            <Divider />
+
+            <InlineStack gap="300">
+              <Button
+                variant="primary"
+                url={checkoutEditorUrl ?? undefined}
+                target="_top"
+                disabled={linksLoading || !checkoutEditorUrl}
+              >
+                Open checkout editor
+              </Button>
+
+              <Button
+                url={checkoutSettingsUrl ?? undefined}
+                target="_top"
+                disabled={!checkoutSettingsUrl}
+              >
+                Checkout settings
+              </Button>
+            </InlineStack>
+          </BlockStack>
+        </Card>
+
+        {/* Footer info */}
+        <Box paddingBlockEnd="600">
+          <InlineStack align="center">
+            <Text as="p" tone="subdued" alignment="center">
+              Gift Checkout makes thoughtful gifting part of every
+              checkout experience.
+            </Text>
+          </InlineStack>
+        </Box>
+      </BlockStack>
     </Page>
+  );
+}
+
+function Feature({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <Box width="30%">
+      <BlockStack gap="100">
+        <Text as="h3" variant="headingMd">
+          {title}
+        </Text>
+
+        <Text as="p" tone="subdued">
+          {description}
+        </Text>
+      </BlockStack>
+    </Box>
+  );
+}
+
+function Step({
+  number,
+  title,
+  description,
+}: {
+  number: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Box width="30%">
+      <BlockStack gap="300">
+        <Text as="p" variant="headingXl">
+          {number}
+        </Text>
+
+        <BlockStack gap="100">
+          <Text as="h3" variant="headingMd">
+            {title}
+          </Text>
+
+          <Text as="p" tone="subdued">
+            {description}
+          </Text>
+        </BlockStack>
+      </BlockStack>
+    </Box>
   );
 }

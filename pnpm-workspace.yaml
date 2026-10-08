@@ -1,3 +1,9 @@
 packages:
- - 'extensions/*'
- - 'web'
+  - 'extensions/*'
+  - 'web'
+allowBuilds:
+  '@parcel/watcher': false
+  '@prisma/client': false
+  '@prisma/engines': false
+  prisma: false
+  unrs-resolver: false
