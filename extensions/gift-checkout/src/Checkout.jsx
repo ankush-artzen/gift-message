@@ -106,16 +106,6 @@ async function persistGiftMessage(message) {
   //   );
   // }
 
-  if (typeof shopify.applyAttributeChange === 'function') {
-    tasks.push(() =>
-      shopify.applyAttributeChange({
-        type: 'updateAttribute',
-        key: GIFT_MESSAGE_ATTRIBUTE_KEY,
-        value: message,
-      }),
-    );
-  }
-
   const results = await Promise.all(tasks.map((task) => runSaveTask(task)));
   return results;
 }
