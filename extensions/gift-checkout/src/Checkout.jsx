@@ -4,10 +4,10 @@ import {useRef, useState} from 'preact/hooks';
 import {containsAbusiveLanguage} from './abusive-language.js';
 
 const GIFT_MESSAGE_KEY = 'gift_message';
+const GIFT_MESSAGE_NAMESPACE = '$app';
 const GIFT_MESSAGE_TYPE = 'multi_line_text_field';
 const GIFT_MESSAGE_MAX_LENGTH = 500;
 const GIFT_MESSAGE_ATTRIBUTE_KEY = 'Gift message';
-const GIFT_MESSAGE_NAMESPACES = ['$app', 'custom'];
 
 export default async () => {
   render(<GiftMessage />, document.body);
@@ -77,41 +77,68 @@ async function runSaveTask(task) {
   }
 }
 
-async function persistGiftMessage(message) {
-  /** @type {Array<() => Promise<unknown>>} */
-  const tasks = [];
+/**
+ * Cart attributes are what this checkout persists onto the order.
+ * The typed `shopify.applyAttributeChange` signature is deprecated, so the
+ * same method is called through a local writer type.
+ * @param {string} message
+ */
+function applyGiftMessageAttribute(message) {
+  const checkout = /** @type {{ applyAttributeChange?: (change: {type: 'updateAttribute', key: string, value: string}) => Promise<{type?: string, message?: string}> }} */ (
+    shopify
+  );
 
-  if (typeof shopify.applyMetafieldChange === 'function') {
-    for (const namespace of GIFT_MESSAGE_NAMESPACES) {
-      tasks.push(() =>
-        shopify.applyMetafieldChange({
-          type: 'updateCartMetafield',
-          metafield: {
-            namespace,
-            key: GIFT_MESSAGE_KEY,
-            type: GIFT_MESSAGE_TYPE,
-            value: message,
-          },
-        }),
-      );
-    }
+  if (typeof checkout.applyAttributeChange !== 'function') {
+    return Promise.resolve({
+      type: 'error',
+      message: 'Cart attributes are unavailable',
+    });
   }
 
-  // if (typeof shopify.applyNoteChange === 'function') {
-  //   tasks.push(() =>
-  //     shopify.applyNoteChange({
-  //       type: 'updateNote',
-  //       note: message,
-  //     }),
-  //   );
-  // }
+  return checkout.applyAttributeChange({
+    type: 'updateAttribute',
+    key: GIFT_MESSAGE_ATTRIBUTE_KEY,
+    value: message,
+  });
+}
 
-  const results = await Promise.all(tasks.map((task) => runSaveTask(task)));
+async function persistGiftMessage(message) {
+  const results = [];
+
+  const attributeResult = await runSaveTask(() =>
+    applyGiftMessageAttribute(message),
+  );
+  results.push({...attributeResult, source: 'attribute'});
+
+  if (typeof shopify.applyMetafieldChange === 'function') {
+    const metafieldResult = await runSaveTask(() =>
+      shopify.applyMetafieldChange({
+        type: 'updateCartMetafield',
+        metafield: {
+          namespace: GIFT_MESSAGE_NAMESPACE,
+          key: GIFT_MESSAGE_KEY,
+          type: GIFT_MESSAGE_TYPE,
+          value: message,
+        },
+      }),
+    );
+    results.push({...metafieldResult, source: 'metafield'});
+  }
+
   return results;
 }
 
 function didSaveSucceed(result) {
   return result?.type !== 'error';
+}
+
+function messageWasSaved(results) {
+  const attributeResult = results.find((result) => result.source === 'attribute');
+  if (attributeResult) {
+    return didSaveSucceed(attributeResult);
+  }
+
+  return results.some(didSaveSucceed);
 }
 
 export function GiftMessage() {
@@ -146,7 +173,7 @@ export function GiftMessage() {
     try {
       const results = await persistGiftMessage(message);
 
-      if (!results.some(didSaveSucceed)) {
+      if (!messageWasSaved(results)) {
         setError(translate('saveError'));
         return;
       }

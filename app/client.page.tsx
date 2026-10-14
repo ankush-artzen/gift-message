@@ -124,21 +124,21 @@ export default function Home() {
     <Page
       title="Gift Checkout"
       subtitle="Let customers add a personal note during checkout."
-      primaryAction={{
-        content: "Open checkout editor",
-        url: checkoutEditorUrl ?? undefined,
-        target: "_top",
-        disabled: linksLoading || !checkoutEditorUrl,
-        loading: linksLoading,
-      }}
-      secondaryActions={[
-        {
-          content: "Checkout settings",
-          url: checkoutSettingsUrl ?? undefined,
-          target: "_top",
-          disabled: linksLoading || !checkoutSettingsUrl,
-        },
-      ]}
+      // primaryAction={{
+      //   content: "Open checkout editor",
+      //   url: checkoutEditorUrl ?? undefined,
+      //   target: "_top",
+      //   disabled: linksLoading || !checkoutEditorUrl,
+      //   loading: linksLoading,
+      // }}
+      // secondaryActions={[
+      //   {
+      //     content: "Checkout settings",
+      //     url: checkoutSettingsUrl ?? undefined,
+      //     target: "_top",
+      //     disabled: linksLoading || !checkoutSettingsUrl,
+      //   },
+      // ]}
     >
       <BlockStack gap="500">
         {linksError ? (
@@ -175,7 +175,7 @@ export default function Home() {
               <BlockStack gap="300">
                 <Highlight
                   icon={NoteIcon}
-                  title="Up to 500 characters"
+                  title="personal note"
                   description="A short, personal note with room for a real message."
                 />
                 <Highlight
