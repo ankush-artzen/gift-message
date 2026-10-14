@@ -1,10 +1,10 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "d303406271e16254413d680f8a88f2bb"
-application_url = "https://roles-authority-blackberry-expenses.trycloudflare.com"
+client_id = "cf6f6ef8861573cce92291a692996592"
+application_url = "https://gift-message-smoky.vercel.app"
 embedded = true
-name = "gift-checkout-app"
-handle = "gift-checkout-app-1"
+name = "Gift-message-checkout"
+handle = "gift-message-checkout-01"
 
 [build]
 automatically_update_urls_on_dev = true
@@ -24,9 +24,9 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://roles-authority-blackberry-expenses.trycloudflare.com/auth/callback",
-  "https://roles-authority-blackberry-expenses.trycloudflare.com/auth/shopify/callback",
-  "https://roles-authority-blackberry-expenses.trycloudflare.com/api/auth/callback"
+  "https://gift-message-smoky.vercel.app/auth/callback",
+  "https://gift-message-smoky.vercel.app/auth/shopify/callback",
+  "https://gift-message-smoky.vercel.app/api/auth/callback"
 ]
 
 [pos]

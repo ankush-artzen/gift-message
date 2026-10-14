@@ -77,7 +77,6 @@ export default function Home() {
         throw new Error("Missing shop domain");
       }
 
-      // Shopify Admin URLs require the shop handle, without .myshopify.com.
       const handle = myshopifyDomain
         .replace(/^https?:\/\//, "")
         .replace(/\.myshopify\.com\/?$/, "");
@@ -98,8 +97,7 @@ export default function Home() {
         throw new Error("Missing checkout profile");
       }
 
-      // Use Shopify's normal checkout editor URL. Do not depend on an
-      // extension ID being present in NEXT_PUBLIC_* environment variables.
+
       const editorUrl =
         `https://admin.shopify.com/store/${encodeURIComponent(handle)}` +
         `/settings/checkout/editor/profiles/${encodeURIComponent(profileId)}` +

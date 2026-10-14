@@ -78,9 +78,6 @@ async function runSaveTask(task) {
 }
 
 /**
- * Cart attributes are what this checkout persists onto the order.
- * The typed `shopify.applyAttributeChange` signature is deprecated, so the
- * same method is called through a local writer type.
  * @param {string} message
  */
 function applyGiftMessageAttribute(message) {
