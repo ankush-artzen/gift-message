@@ -24,10 +24,9 @@ target = "purchase.checkout.block.render"
 # https://shopify.dev/docs/api/checkout-ui-extensions/latest/configuration#api-access
 api_access = true
 
-# Gives your extension access to make external network calls, using the
-# JavaScript `fetch()` API. Learn more:
+# Required so checkout can load the gift box image from the app URL.
 # https://shopify.dev/docs/api/checkout-ui-extensions/latest/configuration#network-access
-# network_access = true
+network_access = true
 
 # Loads metafields on checkout resources, including the cart,
 # products, customers, and more. Learn more:
@@ -41,13 +40,83 @@ key = "gift_message"
 namespace = "$app"
 key = "gift_message"
 
-# Defines settings that will be collected from merchants installing
-# your extension. Learn more:
-# https://shopify.dev/docs/api/checkout-ui-extensions/latest/configuration#settings-definition
+# Merchants edit these in the checkout editor. Blank fields keep the default copy.
 
-# [extensions.settings]
-# [[extensions.settings.fields]]
-# key = "banner_title"
-# type = "single_line_text_field"
-# name = "Banner title"
-# description = "Enter a title for the banner"
+[extensions.settings]
+[[extensions.settings.fields]]
+key = "returns_title"
+type = "single_line_text_field"
+name = "Returns title"
+description = "Heading for the returns row. Leave blank to use the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "100"
+
+[[extensions.settings.fields]]
+key = "returns_body"
+type = "multi_line_text_field"
+name = "Returns details"
+description = "Text shown when returns is opened. You can use <p>, <br>, <hr>, <b>, <strong>, <em>, <i>, <ul>, and <li>. Leave blank to use the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "2000"
+
+[[extensions.settings.fields]]
+key = "shipping_title"
+type = "single_line_text_field"
+name = "Shipping title"
+description = "Heading for the shipping row. Leave blank to use the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "100"
+
+[[extensions.settings.fields]]
+key = "shipping_body"
+type = "multi_line_text_field"
+name = "Shipping details"
+description = "Text shown when shipping is opened. You can use <p>, <br>, <hr>, <b>, <strong>, <em>, <i>, <ul>, and <li>. Leave blank to use the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "2000"
+
+[[extensions.settings.fields]]
+key = "gift_title"
+type = "single_line_text_field"
+name = "Gift message title"
+description = "Heading for the gift message row. Leave blank to use the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "100"
+
+[[extensions.settings.fields]]
+key = "gift_description"
+type = "multi_line_text_field"
+name = "Gift message details"
+description = "Text shown beside the packaging image. You can use <p>, <br>, <hr>, <b>, <strong>, <em>, <i>, <ul>, and <li>. Leave blank to use the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "2000"
+
+[[extensions.settings.fields]]
+key = "gift_image_url"
+type = "single_line_text_field"
+name = "Gift packaging image URL"
+description = "The signature Jan Leslie gift box is shown beside the gift details. An HTTPS URL here is used only if that image is unavailable."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "500"
+
+[[extensions.settings.fields]]
+key = "gift_image_alt"
+type = "single_line_text_field"
+name = "Gift packaging image description"
+description = "Short description of the packaging image for screen readers. Leave blank to use the default."
+[[extensions.settings.fields.validations]]
+name = "max"
+value = "150"
+
+[[extensions.settings.fields]]
+key = "gift_message_max_length"
+type = "number_integer"
+name = "Gift message character limit"
+description = "Maximum characters a customer can enter. Leave blank to use 150."

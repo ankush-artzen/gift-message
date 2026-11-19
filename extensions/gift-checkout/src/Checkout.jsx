@@ -1,145 +1,94 @@
 import '@shopify/ui-extensions/preact';
 import {render} from 'preact';
 import {useRef, useState} from 'preact/hooks';
+import {AccordionRow} from './AccordionRow.jsx';
 import {containsAbusiveLanguage} from './abusive-language.js';
-
-const GIFT_MESSAGE_KEY = 'gift_message';
-const GIFT_MESSAGE_NAMESPACE = '$app';
-const GIFT_MESSAGE_TYPE = 'multi_line_text_field';
-const GIFT_MESSAGE_MAX_LENGTH = 500;
-const GIFT_MESSAGE_ATTRIBUTE_KEY = 'Gift message';
+import {
+  getEventStringValue,
+  getGiftImageUrl,
+  getGiftMessageMaxLength,
+  getSavedGiftMessage,
+  messageWasSaved,
+  persistGiftMessage,
+} from './gift-message.js';
+import {merchantText, renderMerchantContent} from './merchant-content.jsx';
 
 export default async () => {
   render(<GiftMessage />, document.body);
 };
 
-function getSavedGiftMessage() {
-  const metafields = shopify.appMetafields?.value;
-  if (Array.isArray(metafields)) {
-    const entry = metafields.find((item) => {
-      return (
-        item.target?.type === 'cart' &&
-        item.metafield?.key === GIFT_MESSAGE_KEY
-      );
-    });
-
-    if (typeof entry?.metafield?.value === 'string' && entry.metafield.value) {
-      return entry.metafield.value;
-    }
-  }
-
-  const attributes = shopify.attributes?.value;
-  if (Array.isArray(attributes)) {
-    const attribute = attributes.find(
-      (item) => item.key === GIFT_MESSAGE_ATTRIBUTE_KEY,
-    );
-    if (typeof attribute?.value === 'string' && attribute.value) {
-      return attribute.value;
-    }
-  }
-
-  const note = shopify.note?.value;
-  return typeof note === 'string' ? note : '';
-}
-
-function getEventStringValue(event, fallback = '') {
-  const candidates = [
-    event?.currentValue?.value,
-    event?.currentTarget?.value,
-    event?.target?.value,
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === 'string') {
-      return candidate;
-    }
-  }
-
-  return fallback;
+/**
+ * @param {(key: string) => string} translate
+ * @returns {string}
+ */
+function defaultReturnsBody(translate) {
+  return `${translate('returnsBody')}\n\n${translate('returnsFinalSale')}`;
 }
 
 /**
- * @param {() => Promise<unknown>} task
+ * @param {(key: string) => string} translate
+ * @returns {string}
  */
-async function runSaveTask(task) {
-  try {
-    const result = await task();
-    if (result && typeof result === 'object' && 'type' in result) {
-      return result;
-    }
-
-    return {type: 'success'};
-  } catch (error) {
-    return {
-      type: 'error',
-      message: error instanceof Error ? error.message : String(error),
-    };
-  }
+function defaultShippingBody(translate) {
+  return [
+    translate('shippingOvernightTitle'),
+    '',
+    `- ${translate('shippingOvernightWeekday')}`,
+    `- ${translate('shippingOvernightFriday')}`,
+    '',
+    translate('shippingGroundTitle'),
+    '',
+    `- ${translate('shippingGroundFree')}`,
+    `- ${translate('shippingGroundEstimate')}`,
+  ].join('\n');
 }
 
 /**
- * @param {string} message
+ * @param {{
+ *   description: string,
+ *   imageUrl: string,
+ *   imageAlt: string,
+ * }} props
  */
-function applyGiftMessageAttribute(message) {
-  const checkout = /** @type {{ applyAttributeChange?: (change: {type: 'updateAttribute', key: string, value: string}) => Promise<{type?: string, message?: string}> }} */ (
-    shopify
+function GiftIntro({description, imageUrl, imageAlt}) {
+  const copy = renderMerchantContent(description);
+
+  if (!imageUrl) {
+    return copy;
+  }
+
+  return (
+    <s-grid
+      gridTemplateColumns="168px minmax(0, 1fr)"
+      alignItems="center"
+      columnGap="base"
+      inlineSize="100%"
+    >
+      <s-image
+        src={imageUrl}
+        alt={imageAlt}
+        aspectRatio="1/1"
+        objectFit="contain"
+        inlineSize="fill"
+      />
+      <s-box
+        border="base"
+        borderWidth="none none none base"
+        borderStyle="solid"
+        padding="none none none base"
+        inlineSize="100%"
+        minInlineSize="0"
+      >
+        {copy}
+      </s-box>
+    </s-grid>
   );
-
-  if (typeof checkout.applyAttributeChange !== 'function') {
-    return Promise.resolve({
-      type: 'error',
-      message: 'Cart attributes are unavailable',
-    });
-  }
-
-  return checkout.applyAttributeChange({
-    type: 'updateAttribute',
-    key: GIFT_MESSAGE_ATTRIBUTE_KEY,
-    value: message,
-  });
-}
-
-async function persistGiftMessage(message) {
-  const results = [];
-
-  const attributeResult = await runSaveTask(() =>
-    applyGiftMessageAttribute(message),
-  );
-  results.push({...attributeResult, source: 'attribute'});
-
-  if (typeof shopify.applyMetafieldChange === 'function') {
-    const metafieldResult = await runSaveTask(() =>
-      shopify.applyMetafieldChange({
-        type: 'updateCartMetafield',
-        metafield: {
-          namespace: GIFT_MESSAGE_NAMESPACE,
-          key: GIFT_MESSAGE_KEY,
-          type: GIFT_MESSAGE_TYPE,
-          value: message,
-        },
-      }),
-    );
-    results.push({...metafieldResult, source: 'metafield'});
-  }
-
-  return results;
-}
-
-function didSaveSucceed(result) {
-  return result?.type !== 'error';
-}
-
-function messageWasSaved(results) {
-  const attributeResult = results.find((result) => result.source === 'attribute');
-  if (attributeResult) {
-    return didSaveSucceed(attributeResult);
-  }
-
-  return results.some(didSaveSucceed);
 }
 
 export function GiftMessage() {
   const {translate} = shopify.i18n;
+  const maxLength = getGiftMessageMaxLength();
+  const imageUrl = getGiftImageUrl();
   const metafieldMessage = getSavedGiftMessage();
   const [committedMessage, setCommittedMessage] = useState(null);
   const savedMessage = committedMessage ?? metafieldMessage;
@@ -148,8 +97,26 @@ export function GiftMessage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
+  const [openSections, setOpenSections] = useState({
+    returns: false,
+    shipping: false,
+    gift: false,
+  });
   const showEditor = isEditing || !savedMessage;
+  const isAbusiveDraft = containsAbusiveLanguage(draft);
+  const giftMessagePlaceholder = translate('giftMessagePlaceholder', {
+    max: maxLength,
+  });
+
+  /**
+   * @param {'returns' | 'shipping' | 'gift'} section
+   */
+  function toggleSection(section) {
+    setOpenSections((current) => ({
+      ...current,
+      [section]: !current[section],
+    }));
+  }
 
   async function handleSave() {
     const message = String(draftRef.current || draft || '').trim();
@@ -207,7 +174,10 @@ export function GiftMessage() {
    * @param {Event} event
    */
   function handleInput(event) {
-    const value = getEventStringValue(event, draftRef.current);
+    const value = getEventStringValue(event, draftRef.current).slice(
+      0,
+      maxLength,
+    );
     draftRef.current = value;
     setDraft(value);
 
@@ -223,77 +193,113 @@ export function GiftMessage() {
 
   return (
     <s-box
+      background="base"
       border="base"
-      borderWidth="base none base"
+      borderWidth="base none none none"
       borderStyle="solid"
+      padding="none"
       inlineSize="100%"
     >
-      <s-clickable
-        type="button"
-        inlineSize="100%"
-        padding="small none"
-        accessibilityLabel={translate('giftMessage')}
-        onClick={() => setIsOpen((open) => !open)}
+      <AccordionRow
+        icon="return"
+        title={merchantText('returns_title', translate('returnsTitle'))}
+        open={openSections.returns}
+        onToggle={() => toggleSection('returns')}
       >
-        <s-grid
-          gridTemplateColumns="1fr auto"
-          alignItems="center"
-          inlineSize="100%"
-        >
-          <s-stack direction="inline" gap="small" alignItems="center">
-            <s-icon type="gift-card" size="base" />
-            <s-text type="strong">{translate('giftMessage')}</s-text>
-          </s-stack>
-          <s-icon type={isOpen ? 'chevron-up' : 'chevron-down'} size="small" />
-        </s-grid>
-      </s-clickable>
-
-      {isOpen ? (
-        <s-stack gap="base">
-        <s-text color="subdued">{translate('giftingDescription')}</s-text>
-
-        {showEditor ? (
-          <s-stack gap="base">
-            <s-text-area
-              label={translate('giftMessage')}
-              labelAccessibilityVisibility="exclusive"
-              value={draft}
-              rows={4}
-              maxLength={GIFT_MESSAGE_MAX_LENGTH}
-              error={error}
-              disabled={isSaving}
-              onInput={handleInput}
-              onChange={handleInput}
-              onBlur={handleInput}
-            />
-            <s-button
-              variant="primary"
-              type="button"
-              loading={isSaving}
-              disabled={isSaving || containsAbusiveLanguage(draft)}
-              onClick={() => {
-                void handleSave();
-              }}
-            >
-              {translate('save')}
-            </s-button>
-          </s-stack>
-        ) : (
-          <s-stack gap="base">
-            <s-box padding="base" borderWidth="base" borderRadius="base">
-              <s-stack gap="base" alignItems="center">
-                {savedMessage.split('\n').map((line, index) => (
-                  <s-text key={`${index}-${line}`}>{line || ' '}</s-text>
-                ))}
-              </s-stack>
-            </s-box>
-            <s-link href="#" onClick={handleEditClick}>
-              {translate('editGiftMessage')}
-            </s-link>
-          </s-stack>
+        {renderMerchantContent(
+          merchantText('returns_body', defaultReturnsBody(translate)),
         )}
+      </AccordionRow>
+
+      <AccordionRow
+        icon="truck"
+        title={merchantText('shipping_title', translate('shippingTitle'))}
+        open={openSections.shipping}
+        onToggle={() => toggleSection('shipping')}
+      >
+        {renderMerchantContent(
+          merchantText('shipping_body', defaultShippingBody(translate)),
+        )}
+      </AccordionRow>
+
+      <AccordionRow
+        icon="gift-card"
+        title={merchantText('gift_title', translate('giftMessage'))}
+        open={openSections.gift}
+        onToggle={() => toggleSection('gift')}
+      >
+        <s-stack gap="large" inlineSize="100%">
+          <GiftIntro
+            description={merchantText(
+              'gift_description',
+              translate('giftingDescription'),
+            )}
+            imageUrl={imageUrl}
+            imageAlt={merchantText('gift_image_alt', translate('giftImageAlt'))}
+          />
+
+          {showEditor ? (
+            <s-stack gap="small" inlineSize="100%">
+              <s-text-area
+                label={giftMessagePlaceholder}
+                placeholder={giftMessagePlaceholder}
+                value={draft}
+                rows={4}
+                maxLength={maxLength}
+                error={error}
+                disabled={isSaving}
+                onInput={handleInput}
+                onChange={handleInput}
+                onBlur={handleInput}
+              />
+              <s-text color="subdued">
+                {translate('giftMessageCount', {
+                  count: draft.length,
+                  max: maxLength,
+                })}
+              </s-text>
+              <s-stack direction="inline" justifyContent="end" inlineSize="100%">
+                {/* <s-button
+                  variant="primary"
+                  tone="neutral"
+                  type="button"
+                  loading={isSaving}
+                  disabled={isSaving || isAbusiveDraft}
+                  onClick={() => {
+                    void handleSave();
+                  }}
+                >
+                  {translate('save')}
+                </s-button> */}
+                <s-button
+  variant="primary"
+  type="button"
+  loading={isSaving}
+  disabled={isSaving || isAbusiveDraft}
+  onClick={() => {
+    void handleSave();
+  }}
+>
+  {translate('save')}
+</s-button>
+              </s-stack>
+            </s-stack>
+          ) : (
+            <s-stack gap="base">
+              <s-box padding="base" borderWidth="base" borderRadius="base">
+                <s-stack gap="base" alignItems="center">
+                  {savedMessage.split('\n').map((line, index) => (
+                    <s-text key={`${index}-${line}`}>{line || ' '}</s-text>
+                  ))}
+                </s-stack>
+              </s-box>
+              <s-link href="#" onClick={handleEditClick}>
+                {translate('editGiftMessage')}
+              </s-link>
+            </s-stack>
+          )}
         </s-stack>
-      ) : null}
+      </AccordionRow>
     </s-box>
   );
 }
