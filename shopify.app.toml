@@ -1,10 +1,10 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "2242368b77ca300824ce6578cd1e162a"
+client_id = "cf6f6ef8861573cce92291a692996592"
 application_url = "https://gift-message-smoky.vercel.app"
 embedded = true
-name = "Test-gift"
-handle = "test-gift-001"
+name = "Gift-message-checkout"
+handle = "gift-message-checkout-01"
 
 [build]
 automatically_update_urls_on_dev = true
@@ -31,6 +31,3 @@ redirect_urls = [
 
 [pos]
 embedded = false
-
-[network_access]
-allowed_sources = ["https://gift-message-smoky.vercel.app"]

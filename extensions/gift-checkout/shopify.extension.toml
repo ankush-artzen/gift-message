@@ -24,7 +24,7 @@ target = "purchase.checkout.block.render"
 # https://shopify.dev/docs/api/checkout-ui-extensions/latest/configuration#api-access
 api_access = true
 
-# Required so checkout can load the gift box image from the app URL.
+# Required so checkout can load the gift box image.
 # https://shopify.dev/docs/api/checkout-ui-extensions/latest/configuration#network-access
 network_access = true
 
@@ -101,7 +101,7 @@ value = "2000"
 key = "gift_image_url"
 type = "single_line_text_field"
 name = "Gift packaging image URL"
-description = "The signature Jan Leslie gift box is shown beside the gift details. An HTTPS URL here is used only if that image is unavailable."
+description = "Optional HTTPS image URL. Leave blank to use the default gift box image."
 [[extensions.settings.fields.validations]]
 name = "max"
 value = "500"

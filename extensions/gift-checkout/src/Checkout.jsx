@@ -261,7 +261,6 @@ export function GiftMessage() {
               <s-stack direction="inline" justifyContent="end" inlineSize="100%">
                 {/* <s-button
                   variant="primary"
-                  tone="neutral"
                   type="button"
                   loading={isSaving}
                   disabled={isSaving || isAbusiveDraft}
@@ -276,6 +275,7 @@ export function GiftMessage() {
   type="button"
   loading={isSaving}
   disabled={isSaving || isAbusiveDraft}
+  appearance="monochrome"
   onClick={() => {
     void handleSave();
   }}

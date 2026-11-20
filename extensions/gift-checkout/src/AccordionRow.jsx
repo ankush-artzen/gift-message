@@ -28,32 +28,15 @@ export function AccordionRow({icon, title, open, onToggle, children}) {
         onClick={onToggle}
       >
         <s-grid
-          gridTemplateColumns="20px minmax(0, 1fr) 20px"
+          gridTemplateColumns="minmax(0, 1fr) auto"
           alignItems="center"
-          columnGap="small"
           inlineSize="100%"
         >
-          <s-grid
-            inlineSize="20px"
-            blockSize="20px"
-            alignItems="center"
-            justifyItems="center"
-          >
-            <s-icon type={icon} size="base" tone="neutral" />
-          </s-grid>
-          <s-text type="strong">{title}</s-text>
-          <s-grid
-            inlineSize="20px"
-            blockSize="20px"
-            alignItems="center"
-            justifyItems="end"
-          >
-            <s-icon
-              type={open ? 'chevron-up' : 'chevron-down'}
-              size="small"
-              tone="neutral"
-            />
-          </s-grid>
+          <s-stack direction="inline" gap="small" alignItems="center">
+            <s-icon type={icon} size="base" />
+            <s-text type="strong">{title}</s-text>
+          </s-stack>
+          <s-icon type={open ? 'chevron-up' : 'chevron-down'} size="small" />
         </s-grid>
       </s-clickable>
       {open ? (

@@ -18,44 +18,22 @@ export function getGiftMessageMaxLength() {
   return GIFT_MESSAGE_MAX_LENGTH;
 }
 
-const GIFT_BOX_IMAGE_PATH = '/images/giftm.png';
-const DEFAULT_GIFT_IMAGE_HOST = 'https://gift-message-smoky.vercel.app';
-
-/**
- * @returns {string}
- */
-function getAppHostedGiftImageUrl() {
-  let appUrl = DEFAULT_GIFT_IMAGE_HOST;
-
-  try {
-    const fromEnv =
-      typeof process.env.APP_URL === 'string' ? process.env.APP_URL.trim() : '';
-    if (/^https:\/\//i.test(fromEnv)) {
-      appUrl = fromEnv;
-    }
-  } catch {
-    appUrl = DEFAULT_GIFT_IMAGE_HOST;
-  }
-
-  return `${appUrl.replace(/\/$/, '')}${GIFT_BOX_IMAGE_PATH}`;
-}
+const GIFT_BOX_IMAGE_URL =
+  'https://cdn.shopify.com/s/files/1/0649/0449/5187/files/giftm.png?v=1795088710';
 
 /**
  * @returns {string}
  */
 export function getGiftImageUrl() {
-  const hostedImage = getAppHostedGiftImageUrl();
-  if (hostedImage) {
-    return hostedImage;
-  }
-
   const value = shopify.settings?.value?.gift_image_url;
-  if (typeof value !== 'string') {
-    return '';
+  if (typeof value === 'string') {
+    const url = value.trim();
+    if (/^https:\/\//i.test(url)) {
+      return url;
+    }
   }
 
-  const url = value.trim();
-  return /^https:\/\//i.test(url) ? url : '';
+  return GIFT_BOX_IMAGE_URL;
 }
 
 /**
@@ -154,31 +132,37 @@ function applyGiftMessageAttribute(message) {
  * @param {string} message
  */
 export async function persistGiftMessage(message) {
-  const results = [
-    {
-      ...(await runSaveTask(() => applyGiftMessageAttribute(message))),
-      source: 'attribute',
-    },
-  ];
+  const results = [];
+
+  const attributeResult = await runSaveTask(() =>
+    applyGiftMessageAttribute(message),
+  );
+  results.push({...attributeResult, source: 'attribute'});
 
   if (typeof shopify.applyMetafieldChange === 'function') {
-    results.push({
-      ...(await runSaveTask(() =>
-        shopify.applyMetafieldChange({
-          type: 'updateCartMetafield',
-          metafield: {
-            namespace: GIFT_MESSAGE_NAMESPACE,
-            key: GIFT_MESSAGE_KEY,
-            type: GIFT_MESSAGE_TYPE,
-            value: message,
-          },
-        }),
-      )),
-      source: 'metafield',
-    });
+    const metafieldResult = await runSaveTask(() =>
+      shopify.applyMetafieldChange({
+        type: 'updateCartMetafield',
+        metafield: {
+          namespace: GIFT_MESSAGE_NAMESPACE,
+          key: GIFT_MESSAGE_KEY,
+          type: GIFT_MESSAGE_TYPE,
+          value: message,
+        },
+      }),
+    );
+    results.push({...metafieldResult, source: 'metafield'});
   }
 
   return results;
+}
+
+/**
+ * @param {{type?: unknown} | null | undefined} result
+ * @returns {boolean}
+ */
+function didSaveSucceed(result) {
+  return result?.type !== 'error';
 }
 
 /**
@@ -188,8 +172,8 @@ export async function persistGiftMessage(message) {
 export function messageWasSaved(results) {
   const attributeResult = results.find((result) => result.source === 'attribute');
   if (attributeResult) {
-    return attributeResult.type !== 'error';
+    return didSaveSucceed(attributeResult);
   }
 
-  return results.some((result) => result.type !== 'error');
+  return results.some(didSaveSucceed);
 }
